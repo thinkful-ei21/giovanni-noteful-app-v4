@@ -13,13 +13,25 @@ router.post('/',(req, res, next) =>{
 
   let {username, password, fullname = ''} = req.body;
 
-  User.create({
-    username: username,
-    password: password,
-    fullname: fullname
-  })
-    .then(user => user? res.status(201).json(user): next())
-    .catch(err => next(err));
+
+  return User.hashPassword(password)
+    .then(digest => {
+      return User.create({
+        username,
+        password: digest,
+        fullname
+      });
+    })
+    .then(result => {
+      return res.status(201).location(`/api/users/${result.id}`).json(result);
+    })
+    .catch(err => {
+      if (err.code === 11000) {
+        err = new Error('The username already exists');
+        err.status = 400;
+      }
+      next(err);
+    });
 
 });
 

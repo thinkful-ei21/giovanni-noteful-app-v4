@@ -2,13 +2,12 @@
 
 const express = require('express');
 const mongoose = require('mongoose');
-
+const passport = require('passport');
 const Note = require('../models/note');
-
 const router = express.Router();
 
 /* ========== GET/READ ALL ITEMS ========== */
-router.get('/', (req, res, next) => {
+router.get('/', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { searchTerm, folderId, tagId } = req.query;
 
   let filter = {};
@@ -42,7 +41,7 @@ router.get('/', (req, res, next) => {
 });
 
 /* ========== GET/READ A SINGLE ITEM ========== */
-router.get('/:id', (req, res, next) => {
+router.get('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -66,7 +65,7 @@ router.get('/:id', (req, res, next) => {
 });
 
 /* ========== POST/CREATE AN ITEM ========== */
-router.post('/', (req, res, next) => {
+router.post('/', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { title, content, folderId, tags = [] } = req.body;
 
   /***** Never trust users - validate input *****/
@@ -107,7 +106,7 @@ router.post('/', (req, res, next) => {
 });
 
 /* ========== PUT/UPDATE A SINGLE ITEM ========== */
-router.put('/:id', (req, res, next) => {
+router.put('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
   const { title, content, folderId, tags = [] } = req.body;
 
@@ -155,7 +154,7 @@ router.put('/:id', (req, res, next) => {
 });
 
 /* ========== DELETE/REMOVE A SINGLE ITEM ========== */
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
 
   /***** Never trust users - validate input *****/

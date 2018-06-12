@@ -20,19 +20,20 @@ function createToken (user){
     });
 }
 
+const localAuth = passport.authenticate('local', {session: false, failWithError: true});
+const jwtAuth = passport.authenticate('jwt', { session: false, failWithError: true });
 
-
-const options = {session: false, failWithError: true};
-
-const localAuth = passport.authenticate('local', options);
 
 router.post('/login', localAuth, function (req, res) {
 
   res.json( createToken(req.user));
 
-  //   return res.json(req.user);
 });
 
+router.post('/refresh', jwtAuth, function (req, res){
+
+  res.json( createToken(req.user));
+});
 
 
 module.exports = router;

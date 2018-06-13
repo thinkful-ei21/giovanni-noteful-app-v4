@@ -10,8 +10,9 @@ const router = express.Router();
 
 /* ========== GET/READ ALL ITEMS ========== */
 router.get('/', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
+  const userId = req.user.id;
 
-  Folder.find()
+  Folder.find({userId:userId})
     .sort('name')
     .then(results => {
       res.json(results);
@@ -24,6 +25,7 @@ router.get('/', passport.authenticate('jwt', { session: false, failWithError: tr
 /* ========== GET/READ A SINGLE ITEM ========== */
 router.get('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
+  const userId = req.user.id;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     const err = new Error('The `id` is not valid');
@@ -31,7 +33,7 @@ router.get('/:id', passport.authenticate('jwt', { session: false, failWithError:
     return next(err);
   }
 
-  Folder.findById(id)
+  Folder.findOne({_id: id, userId: userId})
     .then(result => {
       if (result) {
         res.json(result);
@@ -47,8 +49,8 @@ router.get('/:id', passport.authenticate('jwt', { session: false, failWithError:
 /* ========== POST/CREATE AN ITEM ========== */
 router.post('/', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { name } = req.body;
-
-  const newFolder = { name };
+  const userId = req.user.id;
+  const newFolder = { name, userId };
 
   /***** Never trust users - validate input *****/
   if (!name) {
@@ -74,6 +76,7 @@ router.post('/', passport.authenticate('jwt', { session: false, failWithError: t
 router.put('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
   const { name } = req.body;
+  const userId = req.user.id;
 
   /***** Never trust users - validate input *****/
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -90,7 +93,16 @@ router.put('/:id', passport.authenticate('jwt', { session: false, failWithError:
 
   const updateFolder = { name };
 
-  Folder.findByIdAndUpdate(id, updateFolder, { new: true })
+  Folder.findById(id)
+    .then(toUpdate => {
+      if(`${toUpdate.userId}` !== userId){
+        const err = new Error('you didn\'t build that!');
+        err.status = 403;
+        return Promise.reject(err);
+      }
+    })
+    .then(()=>{
+      return Folder.findByIdAndUpdate(id, updateFolder, { new: true });})
     .then(result => {
       if (result) {
         res.json(result);
@@ -110,7 +122,7 @@ router.put('/:id', passport.authenticate('jwt', { session: false, failWithError:
 /* ========== DELETE/REMOVE A SINGLE ITEM ========== */
 router.delete('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
-
+  const userId = req.user.id;
   /***** Never trust users - validate input *****/
   if (!mongoose.Types.ObjectId.isValid(id)) {
     const err = new Error('The `id` is not valid');
@@ -118,17 +130,39 @@ router.delete('/:id', passport.authenticate('jwt', { session: false, failWithErr
     return next(err);
   }
 
-  // ON DELETE SET NULL equivalent
-  const folderRemovePromise = Folder.findByIdAndRemove(id);
-  // ON DELETE CASCADE equivalent
-  // const noteRemovePromise = Note.deleteMany({ folderId: id });
+  // let toUpdate = {}
+  // Folder.findById(id).then(obj => {
+  //   console.log(obj)
+  //   toUpdate = obj;});
+  // console.log(toUpdate, userId);
+  // if(toUpdate.userId !== userId){
+  //   const err = new Error('you didn\'t build that!');
+  //   err.status = 403;
+  //   return next(err);
+  // }
 
-  const noteRemovePromise = Note.updateMany(
-    { folderId: id },
-    { $unset: { folderId: '' } }
-  );
+ 
+  Folder.findById(id)
+    .then(toUpdate => {
+      if(`${toUpdate.userId}` !== userId){
+        const err = new Error('you didn\'t build that!');
+        err.status = 403;
+        return Promise.reject(err);
+      }
+    })
+    .then(()=>{
+      // ON DELETE SET NULL equivalent
+      const folderRemovePromise = Folder.findByIdAndRemove(id);
+      // ON DELETE CASCADE equivalent
+      // const noteRemovePromise = Note.deleteMany({ folderId: id });
 
-  Promise.all([folderRemovePromise, noteRemovePromise])
+      const noteRemovePromise = Note.updateMany(
+        { folderId: id },
+        { $unset: { folderId: '' } }
+      );
+
+      return Promise.all([folderRemovePromise, noteRemovePromise]);
+    })
     .then(() => {
       res.sendStatus(204);
     })

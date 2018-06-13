@@ -10,8 +10,9 @@ const router = express.Router();
 
 /* ========== GET/READ ALL ITEMS ========== */
 router.get('/', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
+  const userId = req.user.id;
 
-  Tag.find()
+  Tag.find({userId: userId})
     .sort('name')
     .then(results => {
       res.json(results);
@@ -24,6 +25,7 @@ router.get('/', passport.authenticate('jwt', { session: false, failWithError: tr
 /* ========== GET/READ A SINGLE ITEM ========== */
 router.get('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
+  const userId = req.user.id;
 
   /***** Never trust users - validate input *****/
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -32,7 +34,7 @@ router.get('/:id', passport.authenticate('jwt', { session: false, failWithError:
     return next(err);
   }
 
-  Tag.findById(id)
+  Tag.findOne({_id: id, userId: userId})
     .then(result => {
       if (result) {
         res.json(result);
@@ -48,8 +50,8 @@ router.get('/:id', passport.authenticate('jwt', { session: false, failWithError:
 /* ========== POST/CREATE AN ITEM ========== */
 router.post('/', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { name } = req.body;
-
-  const newTag = { name };
+  const userId = req.user.id;
+  const newTag = { name, userId };
 
   /***** Never trust users - validate input *****/
   if (!name) {
@@ -75,6 +77,7 @@ router.post('/', passport.authenticate('jwt', { session: false, failWithError: t
 router.put('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
   const { name } = req.body;
+  const userId = req.user.id;
 
   /***** Never trust users - validate input *****/
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -91,7 +94,17 @@ router.put('/:id', passport.authenticate('jwt', { session: false, failWithError:
 
   const updateTag = { name };
 
-  Tag.findByIdAndUpdate(id, updateTag, { new: true })
+  Tag.findById(id)
+    .then(toUpdate => {
+      if(`${toUpdate.userId}` !== userId){
+        const err = new Error('you didn\'t build that!');
+        err.status = 403;
+        return Promise.reject(err);
+      }
+    })
+    .then(()=>{
+      return  Tag.findByIdAndUpdate(id, updateTag, { new: true });
+    })
     .then(result => {
       if (result) {
         res.json(result);
@@ -111,6 +124,7 @@ router.put('/:id', passport.authenticate('jwt', { session: false, failWithError:
 /* ========== DELETE/REMOVE A SINGLE ITEM ========== */
 router.delete('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
+  const userId = req.user.id;
 
   /***** Never trust users - validate input *****/
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -119,14 +133,22 @@ router.delete('/:id', passport.authenticate('jwt', { session: false, failWithErr
     return next(err);
   }
 
-  const tagRemovePromise = Tag.findByIdAndRemove(id);
-
-  const noteUpdatePromise = Note.updateMany(
-    { tags: id, },
-    { $pull: { tags: id } }
-  );
-
-  Promise.all([tagRemovePromise, noteUpdatePromise])
+  Tag.findById(id)
+    .then(toUpdate => {
+      if(`${toUpdate.userId}` !== userId){
+        const err = new Error('you didn\'t build that!');
+        err.status = 403;
+        return Promise.reject(err);
+      }
+    })
+    .then(()=>{
+      const tagRemovePromise = Tag.findByIdAndRemove(id);
+      const noteUpdatePromise = Note.updateMany(
+        { tags: id, },
+        { $pull: { tags: id } }
+      );
+      return  Promise.all([tagRemovePromise, noteUpdatePromise]);
+    })
     .then(() => {
       res.sendStatus(204).end();
     })

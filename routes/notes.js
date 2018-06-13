@@ -69,8 +69,12 @@ router.get('/:id', passport.authenticate('jwt', { session: false, failWithError:
 
 /* ========== POST/CREATE AN ITEM ========== */
 router.post('/', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
-  const { title, content, folderId, tags = [] } = req.body;
+  const { title, content, tags = [] } = req.body;
+  let folderId;
+  req.body.folderId? folderId = req.body.folderId: {};
   const userId = req.user.id;
+
+  console.log('starting a post req with title, content, folder Id, tags',title, content, folderId, tags)
 
   /***** Never trust users - validate input *****/
   if (!title) {
@@ -112,8 +116,12 @@ router.post('/', passport.authenticate('jwt', { session: false, failWithError: t
 /* ========== PUT/UPDATE A SINGLE ITEM ========== */
 router.put('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
-  const { title, content, folderId, tags = [] } = req.body;
+  const { title, content, tags = [] } = req.body;
+  let folderId;
+  req.body.folderId? folderId = req.body.folderId: {};
   const userId = req.user.id;
+
+  console.log('id is:',id);
 
   /***** Never trust users - validate input *****/
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -135,7 +143,7 @@ router.put('/:id', passport.authenticate('jwt', { session: false, failWithError:
   }
 
   if (tags) {
-    const badIds = tags.map((tag) => !mongoose.Types.ObjectId.isValid(tag));
+    const badIds = tags.filter((tag) => !mongoose.Types.ObjectId.isValid(tag));
     if (badIds.length) {
       const err = new Error('The tags `id` is not valid');
       err.status = 400;
@@ -143,16 +151,19 @@ router.put('/:id', passport.authenticate('jwt', { session: false, failWithError:
     }
   }
 
-  const toUpdate = Note.findById(id);
-  if(toUpdate.userId !== userId){
-    const err = new Error('you didn\'t build that!');
-    err.status = 403;
-    return next(err);
-  }
-
   const updateNote = { title, content, folderId, tags };
 
-  Note.findByIdAndUpdate(id, updateNote, { new: true })
+  Note.findById(id)
+    .then(toUpdate => {
+      if(`${toUpdate.userId}` !== userId){
+        const err = new Error('you didn\'t build that!');
+        err.status = 403;
+        return Promise.reject(err);
+      }
+    })
+    .then(()=>{
+      return   Note.findByIdAndUpdate(id, updateNote, { new: true })
+    })
     .then(result => {
       if (result) {
         res.json(result);
@@ -177,15 +188,17 @@ router.delete('/:id', passport.authenticate('jwt', { session: false, failWithErr
     return next(err);
   }
 
-  const toUpdate = Note.findById(id);
-  if(toUpdate.userId !== userId){
-    const err = new Error('you didn\'t build that!');
-    err.status = 403;
-    return next(err);
-  }
-
-
-  Note.findByIdAndRemove(id)
+  Note.findById(id)
+    .then(toUpdate => {
+      if(`${toUpdate.userId}` !== userId){
+        const err = new Error('you didn\'t build that!');
+        err.status = 403;
+        return Promise.reject(err);
+      }
+    })
+    .then(()=>{
+      return  Note.findByIdAndRemove(id);
+    })
     .then(() => {
       res.sendStatus(204);
     })

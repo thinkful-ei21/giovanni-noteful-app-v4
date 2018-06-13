@@ -9,8 +9,10 @@ const router = express.Router();
 /* ========== GET/READ ALL ITEMS ========== */
 router.get('/', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { searchTerm, folderId, tagId } = req.query;
-
+  const userId = req.user.id;
+  
   let filter = {};
+  filter.userId= userId;
 
   if (searchTerm) {
     // filter.title = { $regex: searchTerm, $options: 'i' };
@@ -43,6 +45,7 @@ router.get('/', passport.authenticate('jwt', { session: false, failWithError: tr
 /* ========== GET/READ A SINGLE ITEM ========== */
 router.get('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
+  const userId = req.user.id;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     const err = new Error('The `id` is not valid');
@@ -50,7 +53,7 @@ router.get('/:id', passport.authenticate('jwt', { session: false, failWithError:
     return next(err);
   }
 
-  Note.findById(id)
+  Note.findOne({_id: id, userId:userId})
     .populate('tags')
     .then(result => {
       if (result) {
@@ -67,6 +70,7 @@ router.get('/:id', passport.authenticate('jwt', { session: false, failWithError:
 /* ========== POST/CREATE AN ITEM ========== */
 router.post('/', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { title, content, folderId, tags = [] } = req.body;
+  const userId = req.user.id;
 
   /***** Never trust users - validate input *****/
   if (!title) {
@@ -91,7 +95,7 @@ router.post('/', passport.authenticate('jwt', { session: false, failWithError: t
     });
   }
 
-  const newNote = { title, content, folderId, tags };
+  const newNote = { title, content, folderId, tags, userId };
 
   Note.create(newNote)
     .then(result => {
@@ -109,6 +113,7 @@ router.post('/', passport.authenticate('jwt', { session: false, failWithError: t
 router.put('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
   const { title, content, folderId, tags = [] } = req.body;
+  const userId = req.user.id;
 
   /***** Never trust users - validate input *****/
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -138,6 +143,13 @@ router.put('/:id', passport.authenticate('jwt', { session: false, failWithError:
     }
   }
 
+  const toUpdate = Note.findById(id);
+  if(toUpdate.userId !== userId){
+    const err = new Error('you didn\'t build that!');
+    err.status = 403;
+    return next(err);
+  }
+
   const updateNote = { title, content, folderId, tags };
 
   Note.findByIdAndUpdate(id, updateNote, { new: true })
@@ -156,6 +168,7 @@ router.put('/:id', passport.authenticate('jwt', { session: false, failWithError:
 /* ========== DELETE/REMOVE A SINGLE ITEM ========== */
 router.delete('/:id', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const { id } = req.params;
+  const userId = req.user.id;
 
   /***** Never trust users - validate input *****/
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -163,6 +176,14 @@ router.delete('/:id', passport.authenticate('jwt', { session: false, failWithErr
     err.status = 400;
     return next(err);
   }
+
+  const toUpdate = Note.findById(id);
+  if(toUpdate.userId !== userId){
+    const err = new Error('you didn\'t build that!');
+    err.status = 403;
+    return next(err);
+  }
+
 
   Note.findByIdAndRemove(id)
     .then(() => {

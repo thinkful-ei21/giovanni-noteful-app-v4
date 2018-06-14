@@ -6,7 +6,17 @@ const User = require('../models/user');
 
 const router = express.Router();
 
+router.get('/', (req, res, next) => {
 
+  User.find()
+    .sort('name')
+    .then(results => {
+      res.json(results);
+    })
+    .catch(err => {
+      next(err);
+    });
+});
 
 router.post('/',(req, res, next) =>{
 
@@ -18,13 +28,13 @@ router.post('/',(req, res, next) =>{
   const missingField = requiredFields.find(field => !(field in req.body));
 
   if (missingField) {
-    const err = new Error(`Missing '${missingField}' in request body`);
+    const err = new Error(`Missing ${missingField} in request body`);
     err.status = 422;
     return next(err);
   }
 
   //   The fields are type string
-  const badlyFormattedField = requiredFields.find(field => !(typeof field === 'string'));
+  const badlyFormattedField = requiredFields.find(field =>  !(typeof req.body[field] === 'string'));
 
   if(badlyFormattedField){
     const err = new Error(`${badlyFormattedField} should be a string`);
@@ -34,8 +44,11 @@ router.post('/',(req, res, next) =>{
 
   //   The username and password should not have leading or trailing whitespace. And the endpoint should not automatically trim the values
 
+
   const whitespaceInField = requiredFields.find(field =>{
-    return  !field === field.trim();
+    const value = req.body[field];
+    return value.length !== value.trim().length;
+    //   console.log(field, field.length, field.trim().length, test)
   });
 
   if(whitespaceInField){
@@ -45,7 +58,6 @@ router.post('/',(req, res, next) =>{
   }
 
 
-  //   The username is a minimum of 1 character
   if(username.length < 1){
     const err = new Error('name must be at least 1 character long');
     err.status = 422;

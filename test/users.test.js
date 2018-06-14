@@ -71,27 +71,110 @@ describe.only('Noteful API - Users', function () {
         const testUser = { password, fullname };
         return chai.request(app).post('/api/users').send(testUser)
           .then(res => {
-
-            /**
-             * CREATE YOUR ASSERTIONS HERE
-             */
-
+            expect(res).to.have.status(422);
+            expect(res).to.not.have.key('id');
+            expect(res.text).to.equal('{"status":422,"message":"Missing username in request body"}');
           });
       });
 
       /**
        * COMPLETE ALL THE FOLLOWING TESTS
        */
-      it('Should reject users with missing password');
-      it('Should reject users with non-string username');
-      it('Should reject users with non-string password');
-      it('Should reject users with non-trimmed username');
-      it('Should reject users with non-trimmed password');
-      it('Should reject users with empty username');
-      it('Should reject users with password less than 8 characters');
-      it('Should reject users with password greater than 72 characters');
-      it('Should reject users with duplicate username');
-      it('Should trim fullname');
+      it('Should reject users with missing password', function () {
+        const testUser = { username, fullname };
+        return chai.request(app).post('/api/users').send(testUser)
+          .then(res => {
+            expect(res).to.have.status(422);
+            expect(res).to.not.have.key('id');
+            expect(res.text).to.equal('{"status":422,"message":"Missing password in request body"}');
+          });
+      });
+
+      it('Should reject users with non-string username', function () {
+        const testUser = { username: 875 ,password, fullname };
+        return chai.request(app).post('/api/users').send(testUser)
+          .then(res => {
+            expect(res).to.have.status(422);
+            expect(res).to.not.have.key('id');
+            expect(res.text).to.equal('{"status":422,"message":"username should be a string"}');
+          });
+      });
+
+      it('Should reject users with non-string password', function () {
+        const testUser = { username,password: 134, fullname };
+        return chai.request(app).post('/api/users').send(testUser)
+          .then(res => {
+            expect(res).to.have.status(422);
+            expect(res).to.not.have.key('id');
+            expect(res.text).to.equal('{"status":422,"message":"password should be a string"}');
+          });
+      });
+
+      it('Should reject users with non-trimmed username', function () {
+        const testUser = { username :'  asd' , password, fullname };
+        return chai.request(app).post('/api/users').send(testUser)
+          .then(res => {
+            expect(res).to.have.status(422);
+            expect(res).to.not.have.key('id');
+            expect(res.text).to.equal('{"status":422,"message":"username should not have trailing or leading spaces"}');
+          });
+      });
+
+      it('Should reject users with non-trimmed password', function () {
+        const testUser = { username , password:'  asd', fullname };
+        return chai.request(app).post('/api/users').send(testUser)
+          .then(res => {
+            expect(res).to.have.status(422);
+            expect(res).to.not.have.key('id');
+            expect(res.text).to.equal('{"status":422,"message":"password should not have trailing or leading spaces"}');
+          });
+      });
+
+      it('Should reject users with empty username', function () {
+        const testUser = { username :'' , password, fullname };
+        return chai.request(app).post('/api/users').send(testUser)
+          .then(res => {
+            expect(res).to.have.status(422);
+            expect(res).to.not.have.key('id');
+            expect(res.text).to.equal('{"status":422,"message":"name must be at least 1 character long"}');
+          });
+      });
+
+      it('Should reject users with password less than 8 characters', function () {
+        const testUser = { username , password:'asd', fullname };
+        return chai.request(app).post('/api/users').send(testUser)
+          .then(res => {
+            expect(res).to.have.status(422);
+            expect(res).to.not.have.key('id');
+            expect(res.text).to.equal('{"status":422,"message":"password must be a minimum of 8 and max of 72 characters"}');
+          });
+      });
+
+      it('Should reject users with password greater than 72 characters', function () {
+        const testUser = { username,
+          password:'aasasdasdasdasdasdasdasddasasdasdasdasdasdasdasddasasdasdasdasdasdasdasddasasdasdasdasdasdasdasddasasdasdasdasdasdasdasddasasdasdasdasdasdasdasddsasdasdasdasdasdasdasdd',
+          fullname };
+        return chai.request(app).post('/api/users').send(testUser)
+          .then(res => {
+            expect(res).to.have.status(422);
+            expect(res).to.not.have.key('id');
+            expect(res.text).to.equal('{"status":422,"message":"password must be a minimum of 8 and max of 72 characters"}');
+          });
+      });
+
+      it('Should reject users with duplicate username', function () {
+        const testUser = { username , password, fullname };
+        return chai.request(app).post('/api/users').send(testUser)
+          .then(()=>{
+            return chai.request(app).post('/api/users').send(testUser)})
+          .then(res => {
+            expect(res).to.have.status(400);
+            expect(res).to.not.have.key('id');
+            expect(res.text).to.equal('{"status":400,"message":"The username already exists"}');
+          });
+      });
+
+      //it('Should trim fullname');
     });
 
     describe('GET', function () {
@@ -103,7 +186,7 @@ describe.only('Noteful API - Users', function () {
             expect(res.body).to.have.length(0);
           });
       });
-      it('Should return an array of users', function () {
+      it.only('Should return an array of users', function () {
         const testUser0 = {
           username: `${username}`,
           password: `${password}`,
@@ -120,9 +203,23 @@ describe.only('Noteful API - Users', function () {
           fullname: `${fullname}2`
         };
 
-        /**
-         * CREATE THE REQUEST AND MAKE ASSERTIONS
-         */
+        
+        return Promise.all([
+          User.create(testUser0),
+          User.create(testUser1),
+          User.create(testUser2)
+        ])
+
+          .then(res => {
+            return chai.request(app).get('/api/users');
+          })
+          .then((res) =>{
+            
+            expect(res).to.have.status(200);
+            expect(res.body).to.be.an('array');
+            expect(res.body.length).to.equal(3);
+          });
+        
       });
     });
   });

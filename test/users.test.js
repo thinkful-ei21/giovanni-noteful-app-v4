@@ -13,7 +13,7 @@ const expect = chai.expect;
 
 chai.use(chaiHttp);
 
-describe.only('Noteful API - Users', function () {
+describe.skip('Noteful API - Users', function () {
   const username = 'exampleUser';
   const password = 'examplePass';
   const fullname = 'Example User';
@@ -186,7 +186,7 @@ describe.only('Noteful API - Users', function () {
             expect(res.body).to.have.length(0);
           });
       });
-      it.only('Should return an array of users', function () {
+      it('Should return an array of users', function () {
         const testUser0 = {
           username: `${username}`,
           password: `${password}`,
@@ -210,7 +210,7 @@ describe.only('Noteful API - Users', function () {
           User.create(testUser2)
         ])
 
-          .then(res => {
+          .then(() => {
             return chai.request(app).get('/api/users');
           })
           .then((res) =>{

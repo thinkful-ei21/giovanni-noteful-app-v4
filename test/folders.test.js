@@ -53,7 +53,8 @@ describe('Noteful API - Folders', function () {
     it('should return a list sorted by name with the correct number of folders', function () {
       return Promise.all([
         Folder.find({userId: user.id}).sort('name'),
-        chai.request(app).get('/api/folders')
+        chai.request(app)
+          .get('/api/folders')
           .set('Authorization', `Bearer ${token}`)
       ])
         .then(([data, res]) => {

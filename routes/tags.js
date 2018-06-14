@@ -96,7 +96,9 @@ router.put('/:id', passport.authenticate('jwt', { session: false, failWithError:
 
   Tag.findById(id)
     .then(toUpdate => {
-      if(`${toUpdate.userId}` !== userId){
+      if(!toUpdate){
+        return Promise.reject({status: 404, message:'tag not found'});}
+      else if(`${toUpdate.userId}` !== userId){
         const err = new Error('you didn\'t build that!');
         err.status = 403;
         return Promise.reject(err);

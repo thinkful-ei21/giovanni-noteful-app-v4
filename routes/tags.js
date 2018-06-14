@@ -9,6 +9,7 @@ const Note = require('../models/note');
 const router = express.Router();
 
 
+
 /* ========== GET/READ ALL ITEMS ========== */
 router.get('/', passport.authenticate('jwt', { session: false, failWithError: true }), (req, res, next) => {
   const userId = req.user.id;
